@@ -12,6 +12,7 @@ namespace fda_json_parser
     {
         const string fdaUrl = "https://api.fda.gov/download.json";
         const string availableFilesFilePath = @"C:\Users\Joel\Desktop\fda_files\available_files.json";
+        const string localFileDirectory = @"C:\Users\Joel\Desktop\fda_files";
 
         /// <summary>
         /// 
@@ -20,7 +21,8 @@ namespace fda_json_parser
         public async Task FetchFdaDataFiles()
         {
             await GetAvailableFilesFile();
-            GetAvailableFileUrls();
+            List<string> availableUdiPartFileUrlList = GetAvailableFileUrls();
+            await DownloadFdaDataFiles(availableUdiPartFileUrlList);
             Console.ReadKey();
         }
 
@@ -30,21 +32,8 @@ namespace fda_json_parser
         /// <returns></returns>
         async Task GetAvailableFilesFile()
         {
-            //Create HttpClient for downloading the file stream
-            using (HttpClient httpClient = new HttpClient())
-            {
-                //Create the stream for reading data from the specified location
-                using (HttpResponseMessage response = await httpClient.GetAsync(fdaUrl, HttpCompletionOption.ResponseHeadersRead))
-                using (Stream readingStream = await response.Content.ReadAsStreamAsync())
-                {
-                    //Read the stream of the located file into the specified local file
-                    using(Stream writingStream = File.Open(availableFilesFilePath, FileMode.Create))
-                    {
-                        //Await the completion of reading the stream
-                        await readingStream.CopyToAsync(writingStream);
-                    }
-                }
-            }
+            //Download the available files file from the fda service
+            await DownloadFileFromUrl(fdaUrl, availableFilesFilePath);
         }
 
         /// <summary>
@@ -80,6 +69,42 @@ namespace fda_json_parser
                 Console.WriteLine("FILE:  {1}    SIZE:  {0}" , partitionFileSize, partitionDisplayName);
             }
             return udiPartitionFileList;
+        }
+
+        /// <summary>
+        /// Download the zipped udi partition file from the fda service
+        /// </summary>
+        /// <param name="udiPartitionFileUrlList">List of available udi partition files urls</param>
+        /// <returns></returns>
+        async Task DownloadFdaDataFiles(List<string> udiPartitionFileUrlList)
+        {
+            //Loop through each udi partition url string in the available udi partition file list and download by url
+            foreach(string udiPartUrl in udiPartitionFileUrlList)
+            {
+                //Get the file name from the url in the available udi partition file list
+                string udiPartFileName = Path.GetFileName(new Uri(udiPartUrl).LocalPath);
+                //Download the file from the specified url to the local file with the determined name
+                await DownloadFileFromUrl(udiPartUrl, Path.Combine(localFileDirectory, udiPartFileName));
+            }
+        }
+
+        private async Task DownloadFileFromUrl(string url, string localFile)
+        {
+            //Create HttpClient for downloading the file stream
+            using (HttpClient httpClient = new HttpClient())
+            {
+                //Create the stream for reading data from the specified location
+                using (HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
+                using (Stream readingStream = await response.Content.ReadAsStreamAsync())
+                {
+                    //Read the stream of the located file into the specified local file
+                    using (Stream writingStream = File.Open(localFile, FileMode.Create))
+                    {
+                        //Await the completion of reading the stream
+                        await readingStream.CopyToAsync(writingStream);
+                    }
+                }
+            }
         }
     }
 }
