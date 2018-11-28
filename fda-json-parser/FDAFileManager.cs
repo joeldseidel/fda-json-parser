@@ -3,7 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO.Compression;
 using Newtonsoft.Json.Linq;
 
 namespace fda_json_parser
@@ -23,6 +23,7 @@ namespace fda_json_parser
             await GetAvailableFilesFile();
             List<string> availableUdiPartFileUrlList = GetAvailableFileUrls();
             await DownloadFdaDataFiles(availableUdiPartFileUrlList);
+            DecompressUdiPartitionDataFile();
             Console.ReadKey();
         }
 
@@ -85,6 +86,31 @@ namespace fda_json_parser
                 string udiPartFileName = Path.GetFileName(new Uri(udiPartUrl).LocalPath);
                 //Download the file from the specified url to the local file with the determined name
                 await DownloadFileFromUrl(udiPartUrl, Path.Combine(localFileDirectory, udiPartFileName));
+            }
+        }
+
+        /// <summary>
+        /// Unzip the downloaded fda data files
+        /// </summary>
+        void DecompressUdiPartitionDataFile()
+        {
+            //Get the zip files within the local directory
+            string[] zippedUdiPartFiles = Directory.GetFiles(localFileDirectory, "*.zip");
+            //For each udi partition zipped file path, unzip the file into a file of the same name with a json type
+            foreach(string udiPartFilePath in zippedUdiPartFiles)
+            {
+                //Open the zip archive of the zipped data file
+                using (ZipArchive archive = ZipFile.OpenRead(udiPartFilePath))
+                {
+                    //For each zip entry, decompress into a file
+                    foreach(ZipArchiveEntry entry in archive.Entries)
+                    {
+                        //Get the name of the file without the .zip extension
+                        string localDecompressedLocationFile = udiPartFilePath.Replace(".zip", "");
+                        //Extract the zipped json data file into a json file of the same name
+                        entry.ExtractToFile(localDecompressedLocationFile);
+                    }
+                }
             }
         }
 
