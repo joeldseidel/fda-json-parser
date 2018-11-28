@@ -29,14 +29,19 @@ namespace fda_json_parser
 
         void ReadJsonObjectsFromFile(StreamReader reader)
         {
+            string readJsonObject = "";
+            do
+            {
+                readJsonObject = ReadNextJsonObject(reader);
+                Console.WriteLine("Read:\n {0}", readJsonObject);
+            } while (readJsonObject != "");
         }
 
-        void RemoveMetaDataObjectsFromFile(StreamReader reader)
+        string ReadNextJsonObject(StreamReader reader)
         {
-            //Throw out the first line which opens the entire file object
-            reader.ReadLine();
             int openObjectCount = 0;
             int closedObjectCount = 0;
+            string thisObjectString = "";
             do
             {
                 string thisLine = reader.ReadLine();
@@ -48,7 +53,23 @@ namespace fda_json_parser
                 {
                     closedObjectCount++;
                 }
+                if (closedObjectCount > openObjectCount)
+                {
+                    //This is EOF
+                    return "";
+                }
+                thisObjectString += thisLine;
             } while (openObjectCount != closedObjectCount);
+            return thisObjectString;
+        }
+
+        void RemoveMetaDataObjectsFromFile(StreamReader reader)
+        {
+            //Throw out the first line which opens the entire file object
+            reader.ReadLine();
+            ReadNextJsonObject(reader);
+            //Throw out the next line, this is the beginning of the results array
+            reader.ReadLine();
         }
     }
 }

@@ -24,6 +24,7 @@ namespace fda_json_parser
             List<string> availableUdiPartFileUrlList = GetAvailableFileUrls();
             await DownloadFdaDataFiles(availableUdiPartFileUrlList);
             DecompressUdiPartitionDataFile();
+            RemoveAvailableFilesFile();
         }
 
         /// <summary>
@@ -111,6 +112,11 @@ namespace fda_json_parser
                     }
                 }
             }
+        }
+
+        void RemoveAvailableFilesFile()
+        {
+            File.Delete(availableFilesFilePath);
         }
 
         private async Task DownloadFileFromUrl(string url, string localFile)
