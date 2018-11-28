@@ -15,7 +15,7 @@ namespace fda_json_parser
         const string localFileDirectory = @"C:\Users\Joel\Desktop\fda_files";
 
         /// <summary>
-        /// 
+        /// Fetch, download, and decompress the fda data files
         /// </summary>
         /// <returns></returns>
         public async Task FetchFdaDataFiles()
@@ -24,7 +24,6 @@ namespace fda_json_parser
             List<string> availableUdiPartFileUrlList = GetAvailableFileUrls();
             await DownloadFdaDataFiles(availableUdiPartFileUrlList);
             DecompressUdiPartitionDataFile();
-            Console.ReadKey();
         }
 
         /// <summary>
