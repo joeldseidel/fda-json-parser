@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace fda_json_parser
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.WriteLine("Joel Seidel, Maverick Systems LLC");
             Console.WriteLine("Let's parse the FDA's files, shall we?");
@@ -12,6 +13,7 @@ namespace fda_json_parser
             Console.ReadKey();
 
             FDAFileManager fdaFileManager = new FDAFileManager();
+            await fdaFileManager.FetchFdaDataFiles();
         }
     }
 }
