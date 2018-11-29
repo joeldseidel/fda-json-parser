@@ -30,7 +30,10 @@ namespace fda_json_parser
             {
                 if (queryQueue.Count > 0)
                 {
-                    queryQueue.Dequeue();
+                    lock (queryQueue)
+                    {
+                        queryQueue.Dequeue();
+                    }
                 }
             }
         }
@@ -41,7 +44,7 @@ namespace fda_json_parser
             {
                 ThreadPool.QueueUserWorkItem(new WaitCallback(ParseFile), dataFile);
             }
-            allFilesRead = true;
+            Console.WriteLine("all done");
         }
 
         void ParseFile(object dataFile)
@@ -58,7 +61,6 @@ namespace fda_json_parser
 
         void ReadJsonObjectsFromFile(StreamReader reader)
         {
-            int counter = 0;
             string readJsonObject = "";
             do
             {
@@ -291,7 +293,10 @@ namespace fda_json_parser
             }
             #endregion
             string devicePropertiesQueryString = GetFdaDevicePropertyQuery("device", fdaId, props);
-            queryQueue.Enqueue(devicePropertiesQueryString);
+            lock (queryQueue)
+            {
+                queryQueue.Enqueue(devicePropertiesQueryString);
+            }
         }
         void DoChildObjectQueries(JObject readObject, string fdaId)
         {
@@ -339,7 +344,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("email", cc.GetValue("email").ToString()));
                 }
                 string ccQueryString = GetFdaDevicePropertyQuery("device_customer_contacts", fdaId, props);
-                queryQueue.Enqueue(ccQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(ccQueryString);
+                }
             }
         }
         void DoDeviceSizesQuery(JArray dsArr, string fdaId)
@@ -364,7 +372,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("unit", ds.GetValue("unit").ToString()));
                 }
                 string dsQueryString = GetFdaDevicePropertyQuery("device_device_sizes", fdaId, props);
-                queryQueue.Enqueue(dsQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(dsQueryString);
+                }
             }
         }
         void DoGmdnTermsQuery(JArray gtArr, string fdaId)
@@ -381,7 +392,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("definition", gt.GetValue("definition").ToString()));
                 }
                 string gtQueryString = GetFdaDevicePropertyQuery("device_gmdn_terms", fdaId, props);
-                queryQueue.Enqueue(gtQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(gtQueryString);
+                }
             }
         }
         void DoDeviceIdentifiersQuery(JArray diArr, string fdaId)
@@ -422,7 +436,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("unit_of_use_id", di.GetValue("unit_of_use_id").ToString()));
                 }
                 string diQueryString = GetFdaDevicePropertyQuery("device_identifiers", fdaId, props);
-                queryQueue.Enqueue(diQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(diQueryString);
+                }
             }
         }
         void DoPremarketSubmissionQuery(JArray psArr, string fdaId)
@@ -443,7 +460,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("submission_type", ps.GetValue("submission_type").ToString()));
                 }
                 string psQueryString = GetFdaDevicePropertyQuery("device_premarket_submissions", fdaId, props);
-                queryQueue.Enqueue(psQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(psQueryString);
+                }
             }
         }
         void DoDeviceProductCodesQuery(JArray pcArr, string fdaId)
@@ -460,7 +480,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("name", pc.GetValue("name").ToString()));
                 }
                 string pcQueryString = GetFdaDevicePropertyQuery("device_product_codes", fdaId, props);
-                queryQueue.Enqueue(pcQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(pcQueryString);
+                }
             }
         }
         void DoDeviceStorageQuery(JArray dsArr, string fdaId)
@@ -500,7 +523,10 @@ namespace fda_json_parser
                     props.Add(new DeviceProperty("type", ds.GetValue("type").ToString(), "storage_type"));
                 }
                 string dsQueryString = GetFdaDevicePropertyQuery("device_storage", fdaId, props);
-                queryQueue.Enqueue(dsQueryString);
+                lock (queryQueue)
+                {
+                    queryQueue.Enqueue(dsQueryString);
+                }
             }
         }
         string GetFdaDevicePropertyQuery(string tableName, string fdaId, List<DeviceProperty> props)
