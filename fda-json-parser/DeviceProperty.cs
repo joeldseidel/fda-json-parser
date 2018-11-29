@@ -17,5 +17,13 @@
             this.value = value;
             this.colName = keyName;
         }
+        public object GetValue()
+        {
+            return this.value;
+        }
+        public string GetColumnName()
+        {
+            return this.colName;
+        }
     }
 }

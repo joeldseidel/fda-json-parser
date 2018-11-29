@@ -86,9 +86,6 @@ namespace fda_json_parser
 
             DoChildObjectQueries(readObject, fdaId);
             DoDevicePropertiesQuery(readObject, fdaId);
-
-            List<DeviceProperty> props = new List<DeviceProperty>();
-            List<string> readObjectKeys = readObject.Properties().Select(p => p.Name).ToList();
         }
         void DoDevicePropertiesQuery(JObject readObject, string fdaId)
         {
@@ -447,9 +444,38 @@ namespace fda_json_parser
                 queryQueue.Enqueue(dsQueryString);
             }
         }
-        string GetFdaDevicePropertyQuery(String tableName, String fdaId, List<DeviceProperty> props)
+        string GetFdaDevicePropertyQuery(string tableName, string fdaId, List<DeviceProperty> props)
         {
-
+            string writeDeviceColumnsSql = "INSERT INTO " + tableName + "(fda_id";
+            string writeDeviceValuesSql = ") VALUES ('" + fdaId + "'";
+            foreach(DeviceProperty thisProperty in props)
+            {
+                writeDeviceColumnsSql += ", " + thisProperty.GetColumnName();
+                writeDeviceValuesSql += ", ";
+                object propertyValue = thisProperty.GetValue();
+                if (propertyValue.GetType() == typeof(string))
+                {
+                    string propValString = propertyValue.ToString();
+                    propValString = propValString.Replace("'", "''");
+                    writeDeviceValuesSql += "'" + propValString + "'";
+                }
+                else if (propertyValue.GetType() == typeof(bool))
+                {
+                    if ((bool)propertyValue)
+                    {
+                        writeDeviceValuesSql += "1";
+                    }
+                    else
+                    {
+                        writeDeviceValuesSql += "0";
+                    }
+                }
+                else if (propertyValue.GetType() == typeof(int))
+                {
+                    writeDeviceValuesSql += propertyValue;
+                }
+            }
+            return writeDeviceColumnsSql + writeDeviceValuesSql + ")";
         }
     }
 }
