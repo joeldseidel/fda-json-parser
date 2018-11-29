@@ -13,7 +13,11 @@ namespace fda_json_parser
             Console.ReadKey();
 
             FDAFileManager fdaFileManager = new FDAFileManager();
-            await fdaFileManager.FetchFdaDataFiles();
+            //await fdaFileManager.FetchFdaDataFiles();
+
+            FileParseManager fileParseManager = new FileParseManager();
+            fileParseManager.ParseUdiPartitionDataFiles();
+            Console.ReadKey();
         }
     }
 }
