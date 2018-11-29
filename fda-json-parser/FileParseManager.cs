@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -15,18 +14,24 @@ namespace fda_json_parser
         const string localFileDirectory = @"C:\Users\Joel\Desktop\fda_files";
 
         private Queue queryQueue;
-        private bool allFilesRead = false;
+        private int totalFileCount = 0;
+        private int readFileCount = 0;
 
-        public async Task ParseUdiPartitionDataFiles()
+        public void ParseUdiPartitionDataFiles()
         {
             queryQueue = new Queue();
+            string[] dataFiles = Directory.GetFiles(localFileDirectory, "*.json");
+            totalFileCount = dataFiles.Length;
             var queueReaderTask = new Task(() => QueueReader(), TaskCreationOptions.LongRunning);
             queueReaderTask.Start();
-            ReadDataFiles();
+            ReadDataFiles(dataFiles);
+            Task waitTask = queueReaderTask.ContinueWith(t=>Console.WriteLine("Started waiting task"));
+            waitTask.Wait();
+            Console.WriteLine("Completed");
         }
         void QueueReader()
         {
-            while (!allFilesRead)
+            while (totalFileCount != readFileCount || queryQueue.Count > 0)
             {
                 if (queryQueue.Count > 0)
                 {
@@ -36,15 +41,14 @@ namespace fda_json_parser
                     }
                 }
             }
+            Console.WriteLine("Done");
         }
-        void ReadDataFiles()
+        void ReadDataFiles(string[] dataFiles)
         {
-            string[] dataFiles = Directory.GetFiles(localFileDirectory, "*.json");
             foreach (string dataFile in dataFiles)
             {
                 ThreadPool.QueueUserWorkItem(new WaitCallback(ParseFile), dataFile);
             }
-            Console.WriteLine("all done");
         }
 
         void ParseFile(object dataFile)
@@ -56,6 +60,7 @@ namespace fda_json_parser
                 RemoveMetaDataObjectsFromFile(reader);
                 ReadJsonObjectsFromFile(reader);
             }
+            readFileCount += 1;
             Console.WriteLine("Completed {0}", dataFile.ToString());
         }
 
