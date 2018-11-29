@@ -40,7 +40,7 @@ namespace fda_json_parser
             do
             {
                 readJsonObject = ReadNextJsonObject(reader);
-
+                ParseJsonObjectToQuery(readJsonObject);
             } while (readJsonObject != "");
         }
 
@@ -67,6 +67,8 @@ namespace fda_json_parser
                 }
                 thisObjectString += thisLine;
             } while (openObjectCount != closedObjectCount);
+            //Trim the comma off of the end
+            thisObjectString = thisObjectString.Trim(',');
             return thisObjectString;
         }
         void RemoveMetaDataObjectsFromFile(StreamReader reader)
@@ -79,13 +81,16 @@ namespace fda_json_parser
         }
         void ParseJsonObjectToQuery(Object argObj)
         {
+            Console.WriteLine("Start parse");
             string jsonObjectString = argObj.ToString();
             JObject readObject = JObject.Parse(jsonObjectString);
             //Get the fda id which will be primary key for the async insert queries
-            string fdaId = readObject["identifiers"][0]["id"].ToString();
+            string fdaId = readObject["public_device_record_key"].ToString();
 
             DoChildObjectQueries(readObject, fdaId);
             DoDevicePropertiesQuery(readObject, fdaId);
+            Console.WriteLine("Done");
+            Console.ReadKey();
         }
         void DoDevicePropertiesQuery(JObject readObject, string fdaId)
         {
@@ -258,13 +263,34 @@ namespace fda_json_parser
         void DoChildObjectQueries(JObject readObject, string fdaId)
         {
             //Create the queries for the subobjects
-            DoCustomerContactsQuery((JArray)readObject["customer_contacts"], fdaId);
-            DoDeviceSizesQuery((JArray)readObject["device_sizes"], fdaId);
-            DoGmdnTermsQuery((JArray)readObject["gmdn_terms"], fdaId);
-            DoDeviceIdentifiersQuery((JArray)readObject["identifiers"], fdaId);
-            DoPremarketSubmissionQuery((JArray)readObject["premarket_submissions"], fdaId);
-            DoDeviceProductCodesQuery((JArray)readObject["product_codes"], fdaId);
-            DoDeviceStorageQuery((JArray)readObject["storage"], fdaId);
+            if (readObject.ContainsKey("customer_contacts"))
+            {
+                DoCustomerContactsQuery((JArray)readObject["customer_contacts"], fdaId);
+            }
+            if (readObject.ContainsKey("device_sizes"))
+            {
+                DoDeviceSizesQuery((JArray)readObject["device_sizes"], fdaId);
+            }
+            if (readObject.ContainsKey("gmdn_terms"))
+            {
+                DoGmdnTermsQuery((JArray)readObject["gmdn_terms"], fdaId);
+            }
+            if (readObject.ContainsKey("identifiers"))
+            {
+                DoDeviceIdentifiersQuery((JArray)readObject["identifiers"], fdaId);
+            }
+            if (readObject.ContainsKey("premarket_submissions"))
+            {
+                DoPremarketSubmissionQuery((JArray)readObject["premarket_submissions"], fdaId);
+            }
+            if (readObject.ContainsKey("product_codes"))
+            {
+                DoDeviceProductCodesQuery((JArray)readObject["product_codes"], fdaId);
+            }
+            if (readObject.ContainsKey("storage"))
+            {
+                DoDeviceStorageQuery((JArray)readObject["storage"], fdaId);
+            }
         }
         void DoCustomerContactsQuery(JArray ccArr, string fdaId)
         {
