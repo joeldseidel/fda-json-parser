@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using System.Threading;
 
 namespace fda_json_parser
 {
@@ -13,29 +15,50 @@ namespace fda_json_parser
         const string localFileDirectory = @"C:\Users\Joel\Desktop\fda_files";
 
         private Queue queryQueue;
+        private bool allFilesRead = false;
 
         public async Task ParseUdiPartitionDataFiles()
         {
             queryQueue = new Queue();
+            var queueReaderTask = new Task(() => QueueReader(), TaskCreationOptions.LongRunning);
+            queueReaderTask.Start();
             ReadDataFiles();
         }
-
+        void QueueReader()
+        {
+            while (!allFilesRead)
+            {
+                if (queryQueue.Count > 0)
+                {
+                    queryQueue.Dequeue();
+                }
+            }
+        }
         void ReadDataFiles()
         {
             string[] dataFiles = Directory.GetFiles(localFileDirectory, "*.json");
             foreach (string dataFile in dataFiles)
             {
-                using (StreamReader reader = new StreamReader(new FileStream(dataFile, FileMode.Open)))
-                {
-                    //Remove the meta data from the file before parsing
-                    RemoveMetaDataObjectsFromFile(reader);
-                    ReadJsonObjectsFromFile(reader);
-                }
+                ThreadPool.QueueUserWorkItem(new WaitCallback(ParseFile), dataFile);
             }
+            allFilesRead = true;
+        }
+
+        void ParseFile(object dataFile)
+        {
+            Console.WriteLine("Started {0}", dataFile.ToString());
+            using (StreamReader reader = new StreamReader(new FileStream(dataFile.ToString(), FileMode.Open)))
+            {
+                //Remove the meta data from the file before parsing
+                RemoveMetaDataObjectsFromFile(reader);
+                ReadJsonObjectsFromFile(reader);
+            }
+            Console.WriteLine("Completed {0}", dataFile.ToString());
         }
 
         void ReadJsonObjectsFromFile(StreamReader reader)
         {
+            int counter = 0;
             string readJsonObject = "";
             do
             {
@@ -43,7 +66,6 @@ namespace fda_json_parser
                 ParseJsonObjectToQuery(readJsonObject);
             } while (readJsonObject != "");
         }
-
         string ReadNextJsonObject(StreamReader reader)
         {
             int openObjectCount = 0;
@@ -52,7 +74,7 @@ namespace fda_json_parser
             do
             {
                 string thisLine = reader.ReadLine();
-                if (thisLine.Contains("{"))
+                if (thisLine.EndsWith("{"))
                 {
                     openObjectCount++;
                 }
@@ -81,16 +103,23 @@ namespace fda_json_parser
         }
         void ParseJsonObjectToQuery(Object argObj)
         {
-            Console.WriteLine("Start parse");
             string jsonObjectString = argObj.ToString();
-            JObject readObject = JObject.Parse(jsonObjectString);
-            //Get the fda id which will be primary key for the async insert queries
-            string fdaId = readObject["public_device_record_key"].ToString();
+            JObject readObject;
+            try
+            {
+                readObject = JObject.Parse(jsonObjectString);
+                //Get the fda id which will be primary key for the async insert queries
+                string fdaId = readObject["public_device_record_key"].ToString();
 
-            DoChildObjectQueries(readObject, fdaId);
-            DoDevicePropertiesQuery(readObject, fdaId);
-            Console.WriteLine("Done");
-            Console.ReadKey();
+                DoChildObjectQueries(readObject, fdaId);
+                DoDevicePropertiesQuery(readObject, fdaId);
+            }
+            catch (JsonException)
+            {
+            }
+            catch (NullReferenceException)
+            {
+            }
         }
         void DoDevicePropertiesQuery(JObject readObject, string fdaId)
         {
@@ -234,26 +263,30 @@ namespace fda_json_parser
             }
             if (readObject.ContainsKey("product_codes"))
             {
-                JObject openFda = (JObject)readObject["product_codes"][0];
-                if (openFda.ContainsKey("device_class"))
+                JArray productCodesArray = (JArray)readObject["product_codes"];
+                if (productCodesArray.Count > 0)
                 {
-                    props.Add(new DeviceProperty("device_class", openFda.GetValue("device_class").ToString()));
-                }
-                if (openFda.ContainsKey("device_name"))
-                {
-                    props.Add(new DeviceProperty("device_name", openFda.GetValue("device_name").ToString()));
-                }
-                if (openFda.ContainsKey("fei_number"))
-                {
-                    props.Add(new DeviceProperty("fei_number", openFda.GetValue("fei_number").ToString()));
-                }
-                if (openFda.ContainsKey("medical_specialty_description"))
-                {
-                    props.Add(new DeviceProperty("medical_specialty_description", openFda.GetValue("medical_specialty_description").ToString()));
-                }
-                if (openFda.ContainsKey("regulation_number"))
-                {
-                    props.Add(new DeviceProperty("regulation_number", openFda.GetValue("regulation_number").ToString()));
+                    JObject openFda = (JObject)readObject["product_codes"][0];
+                    if (openFda.ContainsKey("device_class"))
+                    {
+                        props.Add(new DeviceProperty("device_class", openFda.GetValue("device_class").ToString()));
+                    }
+                    if (openFda.ContainsKey("device_name"))
+                    {
+                        props.Add(new DeviceProperty("device_name", openFda.GetValue("device_name").ToString()));
+                    }
+                    if (openFda.ContainsKey("fei_number"))
+                    {
+                        props.Add(new DeviceProperty("fei_number", openFda.GetValue("fei_number").ToString()));
+                    }
+                    if (openFda.ContainsKey("medical_specialty_description"))
+                    {
+                        props.Add(new DeviceProperty("medical_specialty_description", openFda.GetValue("medical_specialty_description").ToString()));
+                    }
+                    if (openFda.ContainsKey("regulation_number"))
+                    {
+                        props.Add(new DeviceProperty("regulation_number", openFda.GetValue("regulation_number").ToString()));
+                    }
                 }
             }
             #endregion
