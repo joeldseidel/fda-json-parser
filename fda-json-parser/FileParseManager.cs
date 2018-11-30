@@ -6,6 +6,8 @@ using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Threading;
+using MySql.Data.MySqlClient;
+using System.Data;
 
 namespace fda_json_parser
 {
@@ -31,17 +33,37 @@ namespace fda_json_parser
         }
         void QueueReader()
         {
-            while (totalFileCount != readFileCount || queryQueue.Count > 0)
+            MySqlConnectionStringBuilder connStringBuilder = new MySqlConnectionStringBuilder();
+            // Connection string removed for security
+            using (MySqlConnection mConnection = new MySqlConnection(connStringBuilder.ToString()))
             {
-                if (queryQueue.Count > 0)
+                mConnection.Open();
+                int rowCounter = 0;
+                string batchQuery = "";
+                while (totalFileCount != readFileCount || queryQueue.Count > 0)
                 {
-                    lock (queryQueue)
+                    if (queryQueue.Count > 0)
                     {
-                        queryQueue.Dequeue();
+                        lock (queryQueue)
+                        {
+                            batchQuery += queryQueue.Dequeue().ToString();
+                        }
+                        rowCounter += 1;
+                    }
+                    if (rowCounter >= 2500)
+                    {
+                        using (MySqlCommand writeDeviceCommand = new MySqlCommand(batchQuery, mConnection))
+                        {
+                            Console.WriteLine("Starting database committ");
+                            writeDeviceCommand.CommandType = CommandType.Text;
+                            writeDeviceCommand.ExecuteNonQuery();
+                            Console.WriteLine("Completed database committ");
+                        }
+                        rowCounter = 0;
+                        batchQuery = "";
                     }
                 }
             }
-            Console.WriteLine("Done");
         }
         void ReadDataFiles(string[] dataFiles)
         {
@@ -252,17 +274,21 @@ namespace fda_json_parser
             {
                 props.Add(new DeviceProperty("record_status", readObject.GetValue("record_status").ToString()));
             }
-            if (readObject.ContainsKey("is_sterile"))
+            if (readObject.ContainsKey("sterilization"))
             {
-                props.Add(new DeviceProperty("is_sterile", (bool)readObject.GetValue("is_sterile")));
-            }
-            if (readObject.ContainsKey("is_sterilization_prior_use"))
-            {
-                props.Add(new DeviceProperty("is_sterilization_prior_use", (bool)readObject.GetValue("is_sterilization_prior_use")));
-            }
-            if (readObject.ContainsKey("sterilization_methods"))
-            {
-                props.Add(new DeviceProperty("sterilization_methods", readObject.GetValue("sterilization_methods").ToString()));
+                JObject sterilizationObject = (JObject)readObject["sterilization"];
+                if (sterilizationObject.ContainsKey("is_sterile"))
+                {
+                    props.Add(new DeviceProperty("is_sterile", (bool)sterilizationObject.GetValue("is_sterile")));
+                }
+                if (sterilizationObject.ContainsKey("is_sterilization_prior_use"))
+                {
+                    props.Add(new DeviceProperty("is_sterilization_prior_use", (bool)sterilizationObject.GetValue("is_sterilization_prior_use")));
+                }
+                if (sterilizationObject.ContainsKey("sterilization_methods"))
+                {
+                    props.Add(new DeviceProperty("sterilization_methods", sterilizationObject.GetValue("sterilization_methods").ToString()));
+                }
             }
             if (readObject.ContainsKey("version_or_model_number"))
             {
@@ -273,7 +299,7 @@ namespace fda_json_parser
                 JArray productCodesArray = (JArray)readObject["product_codes"];
                 if (productCodesArray.Count > 0)
                 {
-                    JObject openFda = (JObject)readObject["product_codes"][0];
+                    JObject openFda = (JObject)readObject["product_codes"][0]["openfda"];
                     if (openFda.ContainsKey("device_class"))
                     {
                         props.Add(new DeviceProperty("device_class", openFda.GetValue("device_class").ToString()));
@@ -297,7 +323,7 @@ namespace fda_json_parser
                 }
             }
             #endregion
-            string devicePropertiesQueryString = GetFdaDevicePropertyQuery("device", fdaId, props);
+            string devicePropertiesQueryString = GetFdaDevicePropertyQuery("devices", fdaId, props);
             lock (queryQueue)
             {
                 queryQueue.Enqueue(devicePropertiesQueryString);
@@ -362,15 +388,15 @@ namespace fda_json_parser
                 List<DeviceProperty> props = new List<DeviceProperty>();
                 if (ds.ContainsKey("text"))
                 {
-                    props.Add(new DeviceProperty("text", ds.GetValue("text").ToString(), "size_text"));
+                    props.Add(new DeviceProperty("text", ds.GetValue("text").ToString()));
                 }
                 if (ds.ContainsKey("type"))
                 {
-                    props.Add(new DeviceProperty("type", ds.GetValue("type").ToString(), "size_type"));
+                    props.Add(new DeviceProperty("type", ds.GetValue("type").ToString()));
                 }
                 if (ds.ContainsKey("value"))
                 {
-                    props.Add(new DeviceProperty("value", ds.GetValue("value").ToString(), "size_value"));
+                    props.Add(new DeviceProperty("value", ds.GetValue("value").ToString()));
                 }
                 if (ds.ContainsKey("unit"))
                 {
@@ -410,7 +436,7 @@ namespace fda_json_parser
                 List<DeviceProperty> props = new List<DeviceProperty>();
                 if (di.ContainsKey("id"))
                 {
-                    props.Add(new DeviceProperty("id", di.GetValue("id").ToString(), "identifier_id"));
+                    props.Add(new DeviceProperty("id", di.GetValue("id").ToString()));
                 }
                 if (di.ContainsKey("issuing_agency"))
                 {
@@ -434,7 +460,7 @@ namespace fda_json_parser
                 }
                 if (di.ContainsKey("type"))
                 {
-                    props.Add(new DeviceProperty("type", di.GetValue("type").ToString(), "identifier_type"));
+                    props.Add(new DeviceProperty("type", di.GetValue("type").ToString()));
                 }
                 if (di.ContainsKey("unit_of_use_id"))
                 {
@@ -525,7 +551,7 @@ namespace fda_json_parser
                 }
                 if (ds.ContainsKey("type"))
                 {
-                    props.Add(new DeviceProperty("type", ds.GetValue("type").ToString(), "storage_type"));
+                    props.Add(new DeviceProperty("type", ds.GetValue("type").ToString()));
                 }
                 string dsQueryString = GetFdaDevicePropertyQuery("device_storage", fdaId, props);
                 lock (queryQueue)
@@ -565,7 +591,7 @@ namespace fda_json_parser
                     writeDeviceValuesSql += propertyValue;
                 }
             }
-            return writeDeviceColumnsSql + writeDeviceValuesSql + ")";
+            return writeDeviceColumnsSql + writeDeviceValuesSql + ");";
         }
     }
 }
