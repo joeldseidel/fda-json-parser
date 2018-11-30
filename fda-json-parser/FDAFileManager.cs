@@ -26,7 +26,6 @@ namespace fda_json_parser
             DecompressUdiPartitionDataFile();
             RemoveAvailableFilesFile();
         }
-
         /// <summary>
         /// Download the file from the fda which shows the files available for downloading
         /// </summary>
@@ -36,7 +35,6 @@ namespace fda_json_parser
             //Download the available files file from the fda service
             await DownloadFileFromUrl(fdaUrl, availableFilesFilePath);
         }
-
         /// <summary>
         /// Read and parse the downloaded json object within the available fda files file for a list of the urls of the udi partition files
         /// </summary>
@@ -71,7 +69,6 @@ namespace fda_json_parser
             }
             return udiPartitionFileList;
         }
-
         /// <summary>
         /// Download the zipped udi partition file from the fda service
         /// </summary>
@@ -88,7 +85,6 @@ namespace fda_json_parser
                 await DownloadFileFromUrl(udiPartUrl, Path.Combine(localFileDirectory, udiPartFileName));
             }
         }
-
         /// <summary>
         /// Unzip the downloaded fda data files
         /// </summary>
@@ -113,12 +109,20 @@ namespace fda_json_parser
                 }
             }
         }
-
+        /// <summary>
+        /// Remove the available files file from the local storage directory
+        /// </summary>
         void RemoveAvailableFilesFile()
         {
+            //Delete the file
             File.Delete(availableFilesFilePath);
         }
-
+        /// <summary>
+        /// Download the the file from the specified url
+        /// </summary>
+        /// <param name="url">url of the file</param>
+        /// <param name="localFile">destination directory for the file</param>
+        /// <returns></returns>
         private async Task DownloadFileFromUrl(string url, string localFile)
         {
             //Create HttpClient for downloading the file stream
